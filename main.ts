@@ -24,11 +24,10 @@ enum Pins {
     lbottom = DigitalPin.P0
 }
 enum ServoDirection {
-    Left = 2,
-    Center = 1,
-    Right = 0
+    Left = 2300,
+    Center = 1400,
+    Right = 600
 }
-
 const lineSensors: LineSensors = { r: false, c: false, l: false }
 let data: Buttons = { a: false, b: false, c: false, d: false, e: false, f: false, p: false }
 let ultrasonicData: Array<number> = []
@@ -45,7 +44,7 @@ const stripBottomFrontCenter = stripBottom.range(31, 4)
 const stripBottomFrontLeft = stripBottom.range(34, 4)
 
 const SHIFT: number = 100
-const PERIOD: number = 200
+const PERIOD: number = 100
 let powerReduction: number = 3
 
 let isUp: boolean = false
@@ -56,7 +55,11 @@ let isDriving: boolean = false
 music.setVolume(220)
 stripBottomDown.setBrightness(10)
 stripBottomDown.showRainbow(1, 360)
-doPairing();
+control.inBackground(() => doPairing());
+
+PCAmotor.GeekServo(PCAmotor.Servos.S1, ServoDirection.Center)
+basic.pause(400)
+PCAmotor.StopServo(PCAmotor.Servos.S1)
 
 // can be used to stop motors: carMotor()
 const carMotor = (leftwheel: number = 0, rightwheel: number = 0): void => {
@@ -67,7 +70,7 @@ const carMotor = (leftwheel: number = 0, rightwheel: number = 0): void => {
 }
 
 const servoMove = (direction: ServoDirection): void => {
-    PCAmotor.GeekServo(PCAmotor.Servos.S1, 500 + 1000 * direction)
+    PCAmotor.GeekServo(PCAmotor.Servos.S1, direction)
     basic.pause(600)
     PCAmotor.StopServo(PCAmotor.Servos.S1)
 }
@@ -86,22 +89,20 @@ const controlBottomLEDs = (centralIR: boolean = false): void => {
 
 const obstacleDetector = (distance: number = 0): void => {
     ultrasonicData.unshift(distance)
-    console.log(distance)
-    if (ultrasonicData.length > 5) {
+    if (ultrasonicData.length > 3) {
         ultrasonicData.pop()
         const average: number = ultrasonicData.reduce((sum, currentValue) => sum + currentValue, 0) / ultrasonicData.length
 
-        if (average > 1 && average < 6 && !isObstacleDetected) {
+        if (average > 1 && average < 15 && !isObstacleDetected) {
             music._playDefaultBackground(music.builtInPlayableMelody(Melodies.Wawawawaa), music.PlaybackMode.LoopingInBackground)
             stripTop.showColor(neopixel.hsl(0, 100, 10))
             isObstacleDetected = true
-        } else if ((average >= 6 || average <= 1) && isObstacleDetected) {
+        } else if ((average >= 15 || average <= 1) && isObstacleDetected) {
             music.stopAllSounds()
             stripTop.clear()
             isObstacleDetected = false
         }
         stripTop.show()
-
     }
 }
 
@@ -122,9 +123,9 @@ const reset = (): void => {
 
 basic.forever(function (): void {
     controlBottomLEDs(!!pins.digitalReadPin(Pins.c as number))
-    //obstacleDetector(Sensors.ping(Pins.trig as number, Pins.echo as number, 15))
-    
-    if (lastCall + 3000 > control.millis()) carMotor();
+    obstacleDetector(Sensors.ping(Pins.trig as number, Pins.echo as number, 50))
+
+    if (lastCall + 3000 < control.millis()) carMotor(); //stop
 
     basic.pause(PERIOD)
 })

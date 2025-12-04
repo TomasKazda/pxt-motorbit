@@ -34,8 +34,10 @@ const joyState: JoyStateItem = {
 let pairingMode = false
 const doPairing = () => {
     pairingMode = true
+    pairedSerialNo = -1;
     const start = control.millis();
     while (pairingMode) {
+        radio.sendValue("pairing", 0)
         basic.showIcon(IconNames.Pitchfork, 100)
         basic.clearScreen();
         if ((start + 10000) < control.millis())
@@ -44,15 +46,20 @@ const doPairing = () => {
             basic.pause(300)
     }
 }
-input.onLogoEvent(TouchButtonEvent.LongPressed, doPairing)
+input.onLogoEvent(TouchButtonEvent.LongPressed, ()=>control.inBackground(()=>doPairing()))
 radio.onReceivedValue(function (name: string, value: number) {
-    if (name === "serial" && pairingMode) {
+    if (name === "serial" && (pairingMode || pairedSerialNo === -1)) {
         if (radio.receivedPacket(RadioPacketProperty.SerialNumber) === value) {
             pairedSerialNo = value
+            radio.sendValue("pairing", 1)
             basic.showIcon(IconNames.Happy, 0)
             music.playTone(440, 300)
             pairingMode = false
         }
+    }
+    if (name === "serial" && pairedSerialNo === radio.receivedPacket(RadioPacketProperty.SerialNumber)) {
+        radio.sendValue("pairing", 1)
+        basic.showIcon(IconNames.Pitchfork, 100)
     }
 })
 
